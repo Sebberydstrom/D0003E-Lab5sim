@@ -9,11 +9,13 @@
 #include <stdbool.h>
 
 // Flags for STDOUT.
-#define KEYCHAR_NULL  0
-#define KEYCHAR_FULL  1
-#define STATUS_CHANGE 2
-#define EXIT_NOW      4
-#define ERROR         5
+#define KEYCHAR_NULL   0
+#define KEYCHAR_FULL   1
+#define LIGHTCHAR_NULL 2
+#define LIGHTCHAR_FULL 3
+#define STATUS_CHANGE  4
+#define EXIT_NOW       5
+#define ERROR          6
 
 // flags for cars.
 #define ADD_NORTH           0
@@ -49,8 +51,10 @@ pthread_mutex_t lock_lights;
 pthread_mutex_t lock_cars;
 pthread_mutex_t write_lock;
 pthread_mutex_t keycharlock;
+pthread_mutex_t lightcharlock;
 pthread_mutex_t lock_stdout;
 sem_t keyinput;
+sem_t ligthinput;
 sem_t north_bridge;
 sem_t south_bridge;
 
@@ -69,17 +73,21 @@ typedef struct {
 } Lights;
 
 // Global data 
+Queue lightchars;
 Queue keychars;
 Cars cars;
 Lights lights;
 int COM1;
 const char* simoutput;
+bool redlights;
 
 // Common methods
 void initiateCommons();
 void add_keypress(char c);
 char get_keypress();
 void print_data(int flag);
+void add_lightData(char l);
+char get_lightData();
 void write_r(char ctrl);
 void write_car_data(char ctrl);
 Cars read_car_data();

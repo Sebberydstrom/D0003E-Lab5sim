@@ -4,19 +4,22 @@
 // Happens from main.
 void initiateCommons() {
     // Initiate queues and data.
+    lightchars = create_queue(QUEUE_SIZE);
     keychars = create_queue(QUEUE_SIZE);
     cars = (Cars) { .northQueue = 0, .nAtBridge = 0, .southQueue = 0, .sAtBridge = 0 };
     lights = (Lights) { .northGreen = false, .northRed = false, .southGreen = false, .southRed = false };
+    redlights = true;
 
     // Initiate semaphores and mutex:s. 
     pthread_mutex_init(&lock_lights, NULL);
     pthread_mutex_init(&lock_cars, NULL);
     pthread_mutex_init(&write_lock, NULL);
     pthread_mutex_init(&keycharlock, NULL);
+    pthread_mutex_init(&lightcharlock, NULL);
     pthread_mutex_init(&lock_stdout, NULL);
-    sem_init(&keyinput, 0, 1);
-    sem_init(&north_bridge, 0, 1);
-    sem_init(&south_bridge, 0, 1);
+    sem_init(&keyinput, 0, 0);
+    sem_init(&north_bridge, 0, 0);
+    sem_init(&south_bridge, 0, 0);
 
     // Initiate output string.
     simoutput = 
@@ -52,9 +55,30 @@ char get_keypress() {
     lastinput = dequeue(keychars);
     if ( lastinput == -1) {
         print_data(KEYCHAR_NULL);
+        lastinput = 0;
     };
     pthread_mutex_unlock(&keycharlock);
 
+    return lastinput;
+}
+
+void add_lightData(char l) {
+    pthread_mutex_lock(&lightcharlock);
+    if (enqueue(lightchars, l) == -1) {
+        print_data(LIGHTCHAR_FULL);
+    };
+    pthread_mutex_lock(&lightcharlock);
+}
+
+char get_lightData() {
+    char lastinput;
+    pthread_mutex_lock(&lightcharlock);
+    lastinput = dequeue(lightchars);
+    if ( lastinput == -1) {
+        print_data(LIGHTCHAR_NULL);
+        lastinput = 0;
+    };
+    pthread_mutex_lock(&lightcharlock);
     return lastinput;
 }
 
@@ -62,10 +86,16 @@ void print_data(int flag) {
 
     pthread_mutex_lock(&lock_stdout);
     if (flag == KEYCHAR_FULL) {
-        printf("write error: the keychar queue is full, you cant store more characters.\n");
+        printf("write error: the (keychar) queue is full, you cant store more characters.\n");
     }
     else if (flag == KEYCHAR_NULL) {
         printf("read error: you have read all the stored characters. \n");
+    }
+    else if (flag == LIGHTCHAR_FULL) {
+        printf("write error: the (ligthchar) queue is full, you cant store more characters\n");
+    }
+    else if (flag == LIGHTCHAR_NULL) {
+        printf("read error: you have read all the stored characters. (lightchar)\n");
     }
     else if (flag == EXIT_NOW) {
         printf("You pressed e, exits the program.\n");
@@ -184,6 +214,7 @@ Cars read_car_data() {
 }
 
 void write_light_data(char light_status) {
+    // Enqueue till fifoqueue här.
     pthread_mutex_lock(&lock_lights);
     // Bit 0 - Northbound green light
     if (light_status & (1 << NORTH_GREEN)) {

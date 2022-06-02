@@ -10,8 +10,8 @@
 
 int main() {
     // Initiation
-    initiate_COM1();
-    configure_COM1();
+    //initiate_COM1();
+    //configure_COM1();
     initiateCommons();
     // Create threads.
     pthread_t t1, t2, t3, t4, t5;

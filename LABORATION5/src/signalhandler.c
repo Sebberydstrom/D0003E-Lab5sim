@@ -1,5 +1,6 @@
 #include "signalhandler.h"
 #include "common.h"
+
 // C library headers
 #include <stdio.h>
 #include <string.h>
@@ -98,7 +99,6 @@ void *react_input( void* arg ) {
             add_keypress(input);
             // 3. Send signal through semaphore to other thread to handle arriving car to a queue.
             sem_post(&keyinput);
-
         }
         if (FD_ISSET(COM1, &readfds)) {
             // Handle AVR data. - read & write to com1 - Should not be any problem, uses two pins for sending and receiving.
@@ -107,10 +107,15 @@ void *react_input( void* arg ) {
                 perror("reading error for COM1");
                 exit(1);
             };
-            // Set the data to traffic light struct. -> mutex protected.
-            write_light_data(traffic_lights);
+            // 2. add input to char array FIFO queue.
+            add_lightData(traffic_lights);
+            // 3. If both south and north are red set checker to true.
+            if (((traffic_lights & (1 << NORTH_RED)) && (traffic_lights & (1 << SOUTH_RED)))) {
+                redlights = true;
+            }
         }
     }
+}
 
 
 
@@ -214,5 +219,3 @@ void *react_input( void* arg ) {
    // void *handle_trafficlights( void* arg ) {
 
    // }
-
-}

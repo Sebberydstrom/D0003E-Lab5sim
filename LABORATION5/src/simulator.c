@@ -20,9 +20,13 @@ void *handle_arrivals( void* arg ) {
         {
             case 's':
                 write_r(SOUTH_CAR_ARRIVAL);
+                //write_car_data(ADD_SOUTH);
+                //print_data(STATUS_CHANGE);
                 break;
             case 'n':
                 write_r(NORTH_CAR_ARRIVAL);
+                //write_car_data(ADD_NORTH);
+                //print_data(STATUS_CHANGE);
                 break;
             case 'e':
                 print_data(EXIT_NOW);
@@ -36,9 +40,13 @@ void *handle_arrivals( void* arg ) {
 
 void *handle_trafficlights( void* arg ) {
     while(1) {
-        Lights traffic = read_light_data();
+        // Kan behöva sätta en liten tid i delay här, så att trafikljus signalen från AVR hinner 
+        // Anlända och läsas in. Synca med semaphor.
+        //Lights traffic = read_light_data();       -> not necessary anymore? only one thread that write and read light data struct.
+        // Set latest traffic light data.
+        write_light_data(get_lightData());
         Cars carData = read_car_data();
-        if (traffic.northGreen && traffic.southRed && (carData.northQueue > 0)) {
+        if (lights.northGreen && lights.southRed && (carData.northQueue > 0)) {
             // Ok to drive from northern direction.
             write_car_data(SUB_NORTH);
             print_data(STATUS_CHANGE);
@@ -47,7 +55,7 @@ void *handle_trafficlights( void* arg ) {
             write_r(NORTH_BRIDGE_ENTRY);
             sem_post(&north_bridge);
         }
-        else if (traffic.northRed && traffic.southGreen && (carData.southQueue > 0)) {
+        else if (lights.northRed && lights.southGreen && (carData.southQueue > 0)) {
             // Ok to drive from southern direction.
             write_car_data(SUB_SOUTH);
             print_data(STATUS_CHANGE);
@@ -56,16 +64,20 @@ void *handle_trafficlights( void* arg ) {
             write_r(SOUTH_BRIDGE_ENTRY);
             sem_post(&south_bridge);
         }
-        else if (!(traffic.northRed && traffic.southRed)) {
+        else if ((!(lights.northRed && lights.southRed) && (redlights == true))) {
             // Both are red: default set.
-           continue;
+            redlights = false;
+            print_data(STATUS_CHANGE);
         }
         else {
-            // Fixa detta sen.
-            print_data(STATUS_CHANGE);
-            print_data(ERROR);
-            exit(0);
+            continue;
         }
+        //else {
+        //    // Make sure you print the right error information.
+        //    print_data(STATUS_CHANGE);
+        //    print_data(ERROR);
+        //    sleep(5);
+        //}
     }
 }
 
