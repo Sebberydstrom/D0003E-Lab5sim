@@ -5,9 +5,9 @@
 #define STDIN 0
 
 // Global data
-char input;
-char traffic_lights;
-struct termios tty;
+extern char input;
+extern char traffic_lights;
+extern struct termios tty;
 
 // Initiate COM1 port
 int initiate_COM1();

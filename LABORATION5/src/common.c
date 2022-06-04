@@ -1,6 +1,42 @@
 #include "common.h"
 #include <unistd.h> // write(), read(), close()
 
+/* Global definitions */
+// Semaphores and mutex
+pthread_mutex_t lock_lights;
+pthread_mutex_t lock_cars;
+pthread_mutex_t write_lock;
+pthread_mutex_t keycharlock;
+pthread_mutex_t lightcharlock;
+pthread_mutex_t lock_stdout;
+sem_t keyinput;
+sem_t north_bridge;
+sem_t south_bridge;
+
+// Globals
+Queue lightchars;
+Queue keychars;
+Cars cars;
+Lights lights;
+int COM1 = -1;
+bool redlights = true;
+const char* simoutput =
+        "[Simulator]\n"
+        "   Northbound:\n"
+        "       In Queue:   %d\n"
+        "       At bridge:  %d\n"
+        "   Southbound:\n"
+        "       In Queue:   %d\n"
+        "       At bridge:  %d\n\n"
+        "[Lights]\n"
+        "   Northbound:\n"
+        "       Green:  %s\n"
+        "       Red:    %s\n"
+        "   Southbound:\n"
+        "       Green:  %s\n"
+        "       Red:    %s\n\n"
+        "Input: Add car to north queue (n), Add car to south queue (s), Exit (e):\n\n";
+
 // Happens from main.
 void initiateCommons() {
     // Initiate queues and data.
@@ -22,22 +58,22 @@ void initiateCommons() {
     sem_init(&south_bridge, 0, 0);
 
     // Initiate output string.
-    simoutput = 
-        "[Simulator]\n"
-        "   Northbound:\n"
-        "       In Queue:   %d\n"
-        "       At bridge:  %d\n"
-        "   Southbound:\n"
-        "       In Queue:   %d\n"
-        "       At bridge:  %d\n\n"
-        "[Lights]\n"
-        "   Northbound:\n"
-        "       Green:  %s\n"
-        "       Red:    %s\n"
-        "   Southbound:\n"
-        "       Green:  %s\n"
-        "       Red:    %s\n\n"
-        "Input: Add car to north queue (n), Add car to south queue (s), Exit (e):\n\n";
+    // simoutput = 
+    //     "[Simulator]\n"
+    //     "   Northbound:\n"
+    //     "       In Queue:   %d\n"
+    //     "       At bridge:  %d\n"
+    //     "   Southbound:\n"
+    //     "       In Queue:   %d\n"
+    //     "       At bridge:  %d\n\n"
+    //     "[Lights]\n"
+    //     "   Northbound:\n"
+    //     "       Green:  %s\n"
+    //     "       Red:    %s\n"
+    //     "   Southbound:\n"
+    //     "       Green:  %s\n"
+    //     "       Red:    %s\n\n"
+    //     "Input: Add car to north queue (n), Add car to south queue (s), Exit (e):\n\n";
 }
 
 void add_keypress(char c) {
@@ -96,6 +132,9 @@ void print_data(int flag) {
     }
     else if (flag == LIGHTCHAR_NULL) {
         printf("read error: you have read all the stored characters. (lightchar)\n");
+    }
+    else if (flag == BAD_INPUT) {
+        printf("bad input: only (s), (n) and (e) is acceptable characters.\n");
     }
     else if (flag == EXIT_NOW) {
         printf("You pressed e, exits the program.\n");

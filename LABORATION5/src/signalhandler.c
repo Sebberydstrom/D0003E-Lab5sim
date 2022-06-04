@@ -12,6 +12,9 @@
 #include <sys/time.h> // needed for select
 #include <sys/types.h> // needed for select
 
+char input;
+char traffic_lights;
+struct termios tty;
 
 
 int initiate_COM1() {
@@ -96,9 +99,15 @@ void *react_input( void* arg ) {
                 exit(1);
             };
             // 2. add input char to char array FIFO queue -> mutex protected.
-            add_keypress(input);
-            // 3. Send signal through semaphore to other thread to handle arriving car to a queue.
-            sem_post(&keyinput);
+            if (input == 's' || input == 'n' || input == 'e') {
+                add_keypress(input);
+                // 3. Send signal through semaphore to other thread to handle arriving car to a queue.
+                sem_post(&keyinput);
+            } else {
+                // Not sure why this one prints x2?, because STDIO also reads in enter as a char.
+                print_data(BAD_INPUT);
+            }
+
         }
         if (FD_ISSET(COM1, &readfds)) {
             // Handle AVR data. - read & write to com1 - Should not be any problem, uses two pins for sending and receiving.
@@ -109,7 +118,7 @@ void *react_input( void* arg ) {
             };
             // 2. add input to char array FIFO queue.
             add_lightData(traffic_lights);
-            // 3. If both south and north are red set checker to true.
+            // 3. If both south and north are red set redlights to true.
             if (((traffic_lights & (1 << NORTH_RED)) && (traffic_lights & (1 << SOUTH_RED)))) {
                 redlights = true;
             }

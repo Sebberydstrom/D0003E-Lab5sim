@@ -16,6 +16,7 @@
 #define STATUS_CHANGE  4
 #define EXIT_NOW       5
 #define ERROR          6
+#define BAD_INPUT      7
 
 // flags for cars.
 #define ADD_NORTH           0
@@ -47,16 +48,16 @@
 
 
 // Semaphores and mutex.
-pthread_mutex_t lock_lights;
-pthread_mutex_t lock_cars;
-pthread_mutex_t write_lock;
-pthread_mutex_t keycharlock;
-pthread_mutex_t lightcharlock;
-pthread_mutex_t lock_stdout;
-sem_t keyinput;
-sem_t ligthinput;
-sem_t north_bridge;
-sem_t south_bridge;
+extern pthread_mutex_t lock_lights;
+extern pthread_mutex_t lock_cars;
+extern pthread_mutex_t write_lock;
+extern pthread_mutex_t keycharlock;
+extern pthread_mutex_t lightcharlock;
+extern pthread_mutex_t lock_stdout;
+extern sem_t keyinput;
+extern sem_t ligthinput;
+extern sem_t north_bridge;
+extern sem_t south_bridge;
 
 typedef struct {
     int northQueue;
@@ -73,13 +74,13 @@ typedef struct {
 } Lights;
 
 // Global data 
-Queue lightchars;
-Queue keychars;
-Cars cars;
-Lights lights;
-int COM1;
-const char* simoutput;
-bool redlights;
+extern Queue lightchars;
+extern Queue keychars;
+extern Cars cars;
+extern Lights lights;
+extern int COM1;
+extern const char* simoutput;
+extern bool redlights;
 
 // Common methods
 void initiateCommons();
