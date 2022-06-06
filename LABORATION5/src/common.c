@@ -9,6 +9,7 @@ pthread_mutex_t write_lock;
 pthread_mutex_t keycharlock;
 pthread_mutex_t lightcharlock;
 pthread_mutex_t lock_stdout;
+sem_t set_trafficlights;
 sem_t keyinput;
 sem_t north_bridge;
 sem_t south_bridge;
@@ -18,8 +19,9 @@ Queue lightchars;
 Queue keychars;
 Cars cars;
 Lights lights;
-int COM1 = -1;
-bool redlights = true;
+int COM1;
+bool redlights;
+bool has_added_data_from_avr;
 const char* simoutput =
         "[Simulator]\n"
         "   Northbound:\n"
@@ -45,6 +47,8 @@ void initiateCommons() {
     cars = (Cars) { .northQueue = 0, .nAtBridge = 0, .southQueue = 0, .sAtBridge = 0 };
     lights = (Lights) { .northGreen = false, .northRed = false, .southGreen = false, .southRed = false };
     redlights = true;
+    has_added_data_from_avr = false;
+    COM1 = -1;
 
     // Initiate semaphores and mutex:s. 
     pthread_mutex_init(&lock_lights, NULL);
@@ -53,6 +57,7 @@ void initiateCommons() {
     pthread_mutex_init(&keycharlock, NULL);
     pthread_mutex_init(&lightcharlock, NULL);
     pthread_mutex_init(&lock_stdout, NULL);
+    sem_init(&set_trafficlights, 0, 0);
     sem_init(&keyinput, 0, 0);
     sem_init(&north_bridge, 0, 0);
     sem_init(&south_bridge, 0, 0);
@@ -98,8 +103,11 @@ char get_keypress() {
     return lastinput;
 }
 
+// Vill att OM AVR:en har skickat ett trafikljus då är det detta trafikljus datat som ska läsas.
+
 void add_lightData(char l) {
     pthread_mutex_lock(&lightcharlock);
+    has_added_data_from_avr = true;
     if (enqueue(lightchars, l) == -1) {
         print_data(LIGHTCHAR_FULL);
     };
@@ -109,11 +117,11 @@ void add_lightData(char l) {
 char get_lightData() {
     char lastinput;
     pthread_mutex_lock(&lightcharlock);
-    lastinput = dequeue(lightchars);
-    if ( lastinput == -1) {
-        print_data(LIGHTCHAR_NULL);
+    if (has_added_data_from_avr) {
+        lastinput = dequeue(lightchars);
+    } else {
         lastinput = 0;
-    };
+    }
     pthread_mutex_lock(&lightcharlock);
     return lastinput;
 }

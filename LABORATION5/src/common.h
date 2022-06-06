@@ -54,8 +54,8 @@ extern pthread_mutex_t write_lock;
 extern pthread_mutex_t keycharlock;
 extern pthread_mutex_t lightcharlock;
 extern pthread_mutex_t lock_stdout;
+extern sem_t set_trafficlights;
 extern sem_t keyinput;
-extern sem_t ligthinput;
 extern sem_t north_bridge;
 extern sem_t south_bridge;
 
@@ -81,6 +81,7 @@ extern Lights lights;
 extern int COM1;
 extern const char* simoutput;
 extern bool redlights;
+extern bool has_added_data_from_avr;
 
 // Common methods
 void initiateCommons();

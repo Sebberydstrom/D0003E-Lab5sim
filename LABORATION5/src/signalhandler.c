@@ -85,6 +85,9 @@ void *react_input( void* arg ) {
     FD_SET(STDIN, &readfds);
     FD_SET(COM1, &readfds);
 
+    char key_buf[BUF_LEN_KEYBOARD];
+    char avr_buf[BUF_LEN_AVR];
+
     while(1) {
         // Thread will use select() to listen on COM1 and Keyboard.
         if (select(fdmax, &readfds, NULL, NULL, NULL) == -1) {
@@ -94,13 +97,13 @@ void *react_input( void* arg ) {
         if (FD_ISSET(STDIN, &readfds)) {
             //Handle keypress
             // 1. read keyboard character.
-            if (read(STDIN, &input, sizeof(input)) == -1) {
+            if (read(STDIN, key_buf, BUF_LEN_KEYBOARD) == -1) {
                 perror("reading error for STDIN");
                 exit(1);
             };
             // 2. add input char to char array FIFO queue -> mutex protected.
-            if (input == 's' || input == 'n' || input == 'e') {
-                add_keypress(input);
+            if (key_buf[0] == 's' || key_buf[0] == 'n' || key_buf[0] == 'e') {
+                add_keypress(key_buf[0]);
                 // 3. Send signal through semaphore to other thread to handle arriving car to a queue.
                 sem_post(&keyinput);
             } else {
@@ -112,16 +115,21 @@ void *react_input( void* arg ) {
         if (FD_ISSET(COM1, &readfds)) {
             // Handle AVR data. - read & write to com1 - Should not be any problem, uses two pins for sending and receiving.
             // 1. read the 8 bit data
-            if (read(COM1, &traffic_lights, sizeof(traffic_lights)) == -1) {
+            // Hur mkt data returnerar jag varje gång jag läser från buffern? beroende på det så 
+            // Behöver jag hantera det på olika sätt.
+            ssize_t b_read = read(COM1, &avr_buf, BUF_LEN_AVR);
+            if (b_read == -1) {
                 perror("reading error for COM1");
                 exit(1);
             };
             // 2. add input to char array FIFO queue.
-            add_lightData(traffic_lights);
+            add_lightData(avr_buf[0]);
+            
             // 3. If both south and north are red set redlights to true.
-            if (((traffic_lights & (1 << NORTH_RED)) && (traffic_lights & (1 << SOUTH_RED)))) {
+            if (((avr_buf[0] & (1 << NORTH_RED)) && (avr_buf[0] & (1 << SOUTH_RED)))) {
                 redlights = true;
             }
+            sem_post(&set_trafficlights);
         }
     }
 }

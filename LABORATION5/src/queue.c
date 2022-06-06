@@ -27,11 +27,14 @@ int enqueue(Queue q, datatype c) {
     }
     q->arr[q->head] = c;
     q->head = (q->head + 1) % q->size;
+    return 0;
 }
 
 datatype dequeue(Queue q) {
     if (q->head == q->tail) {
-        return ERROR_NULL;
+        // Always return the latest added value, until a new one has arrived.
+        datatype c = q->arr[q->tail];
+        return c;
     }
     datatype c = q->arr[q->tail];
     q->tail = (q->tail + 1) % q->size;
