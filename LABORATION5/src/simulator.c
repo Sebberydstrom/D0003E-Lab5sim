@@ -82,6 +82,9 @@ void *update_lightdata( void* arg) {
         sem_wait(&set_trafficlights);
         char traffic_lights = get_lightData();
         write_light_data(traffic_lights);
+        // print the update of the light change, might keep this or remove it depening on if
+        // it looks better.
+        print_data(STATUS_CHANGE);
     }
 }
 
