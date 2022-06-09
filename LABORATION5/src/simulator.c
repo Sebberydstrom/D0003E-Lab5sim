@@ -46,25 +46,24 @@ void *handle_trafficlights( void* arg ) {
         // Set latest traffic light data.
         // Tråden verkar låsa sig då get_lightData() anropas.
         // En annan tråd som bara läser och sätter korrekt trafikljusdata.
+        // Hämta ny data.
         Lights lightData = read_light_data();
         Cars carData = read_car_data();
         if (lightData.northGreen && lightData.southRed && (carData.northQueue > 0)) {
             // Ok to drive from northern direction.
             write_car_data(SUB_NORTH);
-            print_data(STATUS_CHANGE);
-            sleep(1);
             write_car_data(ADD_NORTH_ATBRIDGE);
             write_r(NORTH_BRIDGE_ENTRY);
             sem_post(&north_bridge);
+            sleep(1);
         }
         else if (lightData.northRed && lightData.southGreen && (carData.southQueue > 0)) {
             // Ok to drive from southern direction.
             write_car_data(SUB_SOUTH);
-            print_data(STATUS_CHANGE);
-            sleep(1);
             write_car_data(ADD_SOUTH_ATBRIDGE);
             write_r(SOUTH_BRIDGE_ENTRY);
             sem_post(&south_bridge);
+            sleep(1);
         }
         else if (((lightData.northRed && lightData.southRed) && (redlights == true))) {
             // Both are red: default set.
