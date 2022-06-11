@@ -1,12 +1,17 @@
 #ifndef COMMON_H_
 #define COMMON_H_
 
+#include "otherqueue.h"
 #include "queue.h"
 #include <pthread.h>
 #include <semaphore.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
+
+// Flags for which carQueue
+#define NORTH_QUEUE 0
+#define SOUTH_QUEUE 1
 
 // Flags for STDOUT.
 #define KEYCHAR_NULL   0
@@ -45,6 +50,7 @@
 #define SOUTH_RED   3   // Southbound red light status bit
 
 #define QUEUE_SIZE 100
+#define QUEUE_SIZE_OTHER 1000
 
 
 // Semaphores and mutex.
@@ -54,8 +60,13 @@ extern pthread_mutex_t write_lock;
 extern pthread_mutex_t keycharlock;
 extern pthread_mutex_t lightcharlock;
 extern pthread_mutex_t lock_stdout;
+extern pthread_mutex_t lock_activecars;
+extern pthread_mutex_t timelock;
+extern pthread_mutex_t whichQlock;
 extern sem_t set_trafficlights;
 extern sem_t keyinput;
+extern sem_t bridge_exit;
+extern sem_t timescheduler;
 extern sem_t north_bridge;
 extern sem_t south_bridge;
 
@@ -76,9 +87,12 @@ typedef struct {
 // Global data 
 extern Queue lightchars;
 extern Queue keychars;
+extern otherQueue timeQueue;
+extern otherQueue whichQueue;
 extern Cars cars;
 extern Lights lights;
 extern int COM1;
+extern int first_car_entry;
 extern const char* simoutput;
 extern bool redlights;
 extern bool has_added_data_from_avr;
@@ -95,6 +109,13 @@ void write_car_data(char ctrl);
 Cars read_car_data();
 void write_light_data(char ctrl);
 Lights read_light_data();
+void add_active_cars();
+void set_active_cars_zero();
+int get_active_cars();
+void add_timedata(int t);
+int get_timeData();
+void add_whichQData(int identifier);
+int get_whichQData();
 
 
 

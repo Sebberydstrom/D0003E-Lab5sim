@@ -9,17 +9,25 @@ pthread_mutex_t write_lock;
 pthread_mutex_t keycharlock;
 pthread_mutex_t lightcharlock;
 pthread_mutex_t lock_stdout;
+pthread_mutex_t lock_activecars;
+pthread_mutex_t timelock;
+pthread_mutex_t whichQlock;
 sem_t set_trafficlights;
 sem_t keyinput;
 sem_t north_bridge;
 sem_t south_bridge;
+sem_t bridge_exit;
+sem_t timescheduler;
 
 // Globals
 Queue lightchars;
 Queue keychars;
+otherQueue timeQueue;
+otherQueue whichQueue;
 Cars cars;
 Lights lights;
 int COM1;
+int first_car_entry;
 bool redlights;
 bool has_added_data_from_avr;
 const char* simoutput =
@@ -44,10 +52,13 @@ void initiateCommons() {
     // Initiate queues and data.
     lightchars = create_queue(QUEUE_SIZE);
     keychars = create_queue(QUEUE_SIZE);
+    timeQueue = create_queue_other(QUEUE_SIZE_OTHER);
+    whichQueue = create_queue_other(QUEUE_SIZE_OTHER);
     cars = (Cars) { .northQueue = 0, .nAtBridge = 0, .southQueue = 0, .sAtBridge = 0 };
     lights = (Lights) { .northGreen = false, .northRed = false, .southGreen = false, .southRed = false };
     redlights = true;
     has_added_data_from_avr = false;
+    first_car_entry = 0;
     COM1 = -1;
 
     // Initiate semaphores and mutex:s. 
@@ -57,8 +68,14 @@ void initiateCommons() {
     pthread_mutex_init(&keycharlock, NULL);
     pthread_mutex_init(&lightcharlock, NULL);
     pthread_mutex_init(&lock_stdout, NULL);
+    pthread_mutex_init(&lock_activecars, NULL);
+    pthread_mutex_init(&timelock, NULL);
+    pthread_mutex_init(&whichQlock, NULL);
+
     sem_init(&set_trafficlights, 0, 0);
     sem_init(&keyinput, 0, 0);
+    sem_init(&timescheduler, 0, 0);
+    sem_init(&bridge_exit, 0, 0);
     sem_init(&north_bridge, 0, 0);
     sem_init(&south_bridge, 0, 0);
 
@@ -81,6 +98,29 @@ void initiateCommons() {
     //     "Input: Add car to north queue (n), Add car to south queue (s), Exit (e):\n\n";
 }
 
+// Car has entered bridge flag data
+
+void add_active_cars() {
+    pthread_mutex_lock(&lock_activecars);
+    first_car_entry += 1;
+    pthread_mutex_unlock(&lock_activecars);
+}
+
+void set_active_cars_zero() {
+    pthread_mutex_lock(&lock_activecars);
+    first_car_entry = 0;
+    pthread_mutex_unlock(&lock_activecars);
+}
+
+int get_active_cars() {
+    pthread_mutex_lock(&lock_activecars);
+    return first_car_entry;
+    pthread_mutex_unlock(&lock_activecars);
+}
+
+
+
+// Keyboard
 void add_keypress(char c) {
     pthread_mutex_lock(&keycharlock);
     if (enqueue(keychars, c) == -1) {
@@ -88,9 +128,8 @@ void add_keypress(char c) {
     };
     pthread_mutex_unlock(&keycharlock);
 }
-
+// Keyboard
 char get_keypress() {
-
     char lastinput;
     pthread_mutex_lock(&keycharlock);
     lastinput = dequeue(keychars);
@@ -99,12 +138,9 @@ char get_keypress() {
         lastinput = 0;
     };
     pthread_mutex_unlock(&keycharlock);
-
     return lastinput;
 }
-
-// Vill att OM AVR:en har skickat ett trafikljus då är det detta trafikljus datat som ska läsas.
-
+// Trafficlights
 void add_lightData(char l) {
     pthread_mutex_lock(&lightcharlock);
     has_added_data_from_avr = true;
@@ -113,7 +149,7 @@ void add_lightData(char l) {
     };
     pthread_mutex_lock(&lightcharlock);
 }
-
+//Trafficlights
 char get_lightData() {
     char lastinput;
     pthread_mutex_lock(&lightcharlock);
@@ -123,6 +159,38 @@ char get_lightData() {
         lastinput = 0;
     }
     pthread_mutex_lock(&lightcharlock);
+    return lastinput;
+}
+// Scheduler data
+void add_timedata(int t) {
+    pthread_mutex_lock(&timelock);
+    if (enqueue_other(timeQueue, t) == -1) {
+        print_data(ERROR);
+    };
+    pthread_mutex_unlock(&timelock);
+}
+// Scheduler data
+int get_timeData() {
+    int lastinput;
+    pthread_mutex_lock(&timelock);
+    lastinput = dequeue_other(timeQueue);
+    pthread_mutex_unlock(&timelock);
+    return lastinput;
+}
+// Which car queue data
+void add_whichQData(int identifier) {
+    pthread_mutex_lock(&whichQlock);
+    if (enqueue_other(whichQueue, identifier) == -1) {
+        print_data(ERROR);
+    };
+    pthread_mutex_unlock(&whichQlock);
+}
+// Which car queue data
+int get_whichQData() {
+    int lastinput;
+    pthread_mutex_lock(&whichQlock);
+    lastinput = dequeue_other(whichQueue);
+    pthread_mutex_unlock(&whichQlock);
     return lastinput;
 }
 
@@ -165,7 +233,7 @@ void print_data(int flag) {
             );
     }
     else if (flag == ERROR) {
-        printf("Error, possibly green lights at both sides or No more cars in queues.\n");
+        printf("Error, somewhere in code.\n");
     }
     pthread_mutex_unlock(&lock_stdout);
 }

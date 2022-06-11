@@ -7,6 +7,8 @@
 
 // Linux headers
 #include <unistd.h> // write(), read(), close()
+#include <signal.h>
+#include <time.h>
 
 
 
@@ -39,40 +41,95 @@ void *handle_arrivals( void* arg ) {
 
 
 void *handle_trafficlights( void* arg ) {
+
     while(1) {
-        // Kan behöva sätta en liten tid i delay här, så att trafikljus signalen från AVR hinner 
-        // Anlända och läsas in. Synca med semaphor.
-        //Lights traffic = read_light_data(); -> not necessary anymore? only one thread that write and read light data struct.
-        // Set latest traffic light data.
-        // Tråden verkar låsa sig då get_lightData() anropas.
-        // En annan tråd som bara läser och sätter korrekt trafikljusdata.
-        // Hämta ny data.
+
         Lights lightData = read_light_data();
         Cars carData = read_car_data();
         if (lightData.northGreen && lightData.southRed && (carData.northQueue > 0)) {
             // Ok to drive from northern direction.
+            add_active_cars();
             write_car_data(SUB_NORTH);
             write_car_data(ADD_NORTH_ATBRIDGE);
             write_r(NORTH_BRIDGE_ENTRY);
-            sem_post(&north_bridge);
+            // Calculate future timestamp for a car to leave bridge.
+            calculate_and_add_future_time();
+            // Add which Queue the car on the bridge belong to.
+            add_whichQData(NORTH_QUEUE);
             sleep(1);
+            //sem_post(&north_bridge);
         }
         else if (lightData.northRed && lightData.southGreen && (carData.southQueue > 0)) {
             // Ok to drive from southern direction.
+            add_active_cars();
             write_car_data(SUB_SOUTH);
             write_car_data(ADD_SOUTH_ATBRIDGE);
             write_r(SOUTH_BRIDGE_ENTRY);
-            sem_post(&south_bridge);
+            // Calculate future timestamp for a car to leave bridge.
+            calculate_and_add_future_time();
+            // Add which Queue the car on the bridge belong to.
+            add_whichQData(SOUTH_QUEUE);
             sleep(1);
+            //sem_post(&south_bridge);
         }
         else if (((lightData.northRed && lightData.southRed) && (redlights == true))) {
             // Both are red: default set.
             redlights = false;
             print_data(STATUS_CHANGE);
         }
-        else {
-            continue;
+
+        if (get_active_cars() == 1) {
+            // Activate the schedule new time thread for the first time.
+            sem_post(&timescheduler);
         }
+    }
+}
+
+void *schedule_new_time( void * arg) {
+    // Setup timer for next event.
+    timer_t timer_id;
+    struct sigevent ev;
+    ev.sigev_notify = SIGEV_SIGNAL;
+    ev.sigev_signo = SIGALRM;
+    ev.sigev_value.sival_ptr = &timer_id;
+    
+    if (timer_create(CLOCK_REALTIME, &ev, &timer_id) == -1) {
+        perror("timer_create");
+        exit(0);
+    }
+    // Need to fetch latest added time and calculate the diff from current time, and schedule a signal to
+    // signal the sig_handler(). 
+    while(1) {
+        sem_wait(&timescheduler);
+        // Get the current time.
+        struct timespec ts;
+        if (clock_gettime(CLOCK_REALTIME, &ts) == -1) {
+            perror("clock_gettime");
+            exit(0);
+        }
+        // Get future time.
+        int future_time = get_timeData();
+        if (future_time == -1) {
+            set_active_cars_zero();
+        }
+        time_t curr_time = ts.tv_sec;
+        time_t next_run = curr_time - future_time;
+        // fetch the latest future time to schedule.
+        if(future_time != -1 && next_run > 0) {
+            struct itimerspec spec;
+            spec.it_interval.tv_nsec = 0;
+            spec.it_interval.tv_sec = 0;
+            spec.it_value.tv_nsec = 0;
+            spec.it_value.tv_sec = next_run;
+
+            if (timer_settime(timer_id, 0, &spec, NULL) == -1) {
+                perror("timer_settime");
+                exit(0);
+            }
+        } else if( future_time == -1) {
+            set_active_cars_zero();
+        }
+
     }
 }
 
@@ -88,6 +145,21 @@ void *update_lightdata( void* arg) {
     }
 }
 
+
+void *handle_bridge_exit( void* arg) {
+    while(1) {
+        sem_wait(&bridge_exit);
+        int identifier = get_whichQData();
+        if(identifier == NORTH_QUEUE) {
+            write_car_data(SUB_NORTH_ATBRIDGE);
+            print_data(STATUS_CHANGE);
+        } 
+        else if(identifier == SOUTH_QUEUE) {
+            write_car_data(SUB_SOUTH_ATBRIDGE);
+            print_data(STATUS_CHANGE);
+        }
+    }
+}
 
 void *handle_bridgeSouth( void* arg ) {
     while(1) {
@@ -108,10 +180,17 @@ void *handle_bridgeNorth( void* arg ) {
     }
 }
 
-
-
-
-
+void calculate_and_add_future_time() {
+    struct timespec ts;
+    if (clock_gettime(CLOCK_REALTIME, &ts) == -1) {
+        perror("clock_gettime");
+        exit(0);
+    }
+    // Add the time a car that has entered the bridge will need to exit.
+    int future_time = ts.tv_sec + 5;
+    // Add to queue timeQueue.
+    add_timedata(future_time);
+}
 
 
 
