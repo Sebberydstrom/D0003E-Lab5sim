@@ -43,7 +43,6 @@ void *handle_arrivals( void* arg ) {
 void *handle_trafficlights( void* arg ) {
 
     while(1) {
-
         Lights lightData = read_light_data();
         Cars carData = read_car_data();
         if (lightData.northGreen && lightData.southRed && (carData.northQueue > 0)) {

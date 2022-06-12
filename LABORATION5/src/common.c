@@ -112,10 +112,13 @@ void set_active_cars_zero() {
     pthread_mutex_unlock(&lock_activecars);
 }
 
+// OBS här är felet -> ändra detta imorgon.
 int get_active_cars() {
+    int no_cars;
     pthread_mutex_lock(&lock_activecars);
-    return first_car_entry;
+    no_cars = first_car_entry;
     pthread_mutex_unlock(&lock_activecars);
+    return no_cars;
 }
 
 
@@ -147,7 +150,7 @@ void add_lightData(char l) {
     if (enqueue(lightchars, l) == -1) {
         print_data(LIGHTCHAR_FULL);
     };
-    pthread_mutex_lock(&lightcharlock);
+    pthread_mutex_unlock(&lightcharlock);
 }
 //Trafficlights
 char get_lightData() {
@@ -158,7 +161,7 @@ char get_lightData() {
     } else {
         lastinput = 0;
     }
-    pthread_mutex_lock(&lightcharlock);
+    pthread_mutex_unlock(&lightcharlock);
     return lastinput;
 }
 // Scheduler data
